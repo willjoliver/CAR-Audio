@@ -64,13 +64,19 @@ function applyFontStyles() {
       font-weight: 400 !important;
     }
     
-    /* Buttons - Gamay Condensed */
+    /* Buttons - Gamay Condensed - Target all Wix button classes */
     button,
     [class*="button"],
     .wix-button,
+    .wixui-button,
+    .wixui-button__label,
+    .w4Vxx6,
+    [role="button"],
+    [data-testid="linkElement"],
     input[type="submit"],
     input[type="button"],
-    a[role="button"] {
+    a[role="button"],
+    span[class*="wixui-button__label"] {
       font-family: "gamay-condensed", sans-serif !important;
       font-weight: 400 !important;
     }
