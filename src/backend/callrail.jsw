@@ -1,0 +1,169 @@
+/**
+ * CallRail API Integration
+ * 
+ * This module handles CallRail call tracking, form submissions,
+ * and lead attribution for the CARAudio website.
+ * 
+ * SETUP:
+ * 1. Add CALLRAIL_API_KEY to Wix Secrets Manager
+ * 2. Add CALLRAIL_COMPANY_ID to Secrets Manager
+ * 3. Add CALLRAIL_ACCOUNT_ID to Secrets Manager
+ * 4. Add CallRail JavaScript snippet to site Custom Code
+ * 
+ * @module backend/callrail
+ */
+
+import { fetch } from 'wix-fetch';
+import { getSecret } from 'wix-secrets-backend';
+
+// Cache API credentials
+let apiKey = null;
+let companyId = null;
+let accountId = null;
+
+/**
+ * Initialize API credentials from Secrets Manager
+ */
+async function initCredentials() {
+  if (!apiKey) {
+    apiKey = await getSecret('CALLRAIL_API_KEY');
+    companyId = await getSecret('CALLRAIL_COMPANY_ID');
+    accountId = await getSecret('CALLRAIL_ACCOUNT_ID');
+  }
+}
+
+/**
+ * Make authenticated request to CallRail API
+ * @param {string} endpoint - API endpoint path
+ * @param {string} method - HTTP method (GET, POST, PUT)
+ * @param {object} data - Request body data
+ * @returns {Promise<object>} API response
+ */
+async function makeRequest(endpoint, method = 'GET', data = null) {
+  await initCredentials();
+  
+  const options = {
+    method: method,
+    headers: {
+      'Authorization': `Token token=${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
+  
+  if (data && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(data);
+  }
+  
+  try {
+    const url = `https://api.callrail.com/v3${endpoint}`;
+    const response = await fetch(url, options);
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('CallRail API Error:', response.status, result);
+      return {
+        success: false,
+        error: result.message || 'API request failed',
+        status: response.status
+      };
+    }
+    
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error('CallRail Request Error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error occurred'
+    };
+  }
+}
+
+/**
+ * Track a form submission in CallRail
+ * @param {object} formData - Form submission data
+ * @returns {Promise<object>} Tracking confirmation
+ */
+export async function trackFormSubmission(formData) {
+  await initCredentials();
+  
+  const payload = {
+    company_id: companyId,
+    form_submission: {
+      referring_url: formData.referringUrl || '',
+      landing_page_url: formData.landingPageUrl || '',
+      form_url: formData.formUrl || '',
+      form_data: {
+        name: formData.name || '',
+        email: formData.email || '',
+        phone: formData.phone || '',
+        message: formData.message || '',
+        service: formData.service || '',
+        vehicle: formData.vehicle || ''
+      },
+      custom_fields: formData.customFields || {}
+    }
+  };
+  
+  return await makeRequest(
+    `/a/${accountId}/form_submissions.json`,
+    'POST',
+    payload
+  );
+}
+
+/**
+ * Get recent calls from CallRail
+ * @param {number} limit - Number of calls to retrieve (default: 10)
+ * @param {object} filters - Optional filters (date_range, etc.)
+ * @returns {Promise<object>} List of calls
+ */
+export async function getCalls(limit = 10, filters = {}) {
+  await initCredentials();
+  
+  let queryParams = `per_page=${limit}`;
+  
+  if (filters.startDate) {
+    queryParams += `&start_date=${filters.startDate}`;
+  }
+  if (filters.endDate) {
+    queryParams += `&end_date=${filters.endDate}`;
+  }
+  
+  return await makeRequest(`/a/${accountId}/calls.json?${queryParams}`);
+}
+
+/**
+ * Get details of a specific call
+ * @param {string} callId - CallRail call ID
+ * @returns {Promise<object>} Call details
+ */
+export async function getCallDetails(callId) {
+  await initCredentials();
+  return await makeRequest(`/a/${accountId}/calls/${callId}.json`);
+}
+
+/**
+ * Get form submissions from CallRail
+ * @param {number} limit - Number of submissions to retrieve
+ * @param {object} filters - Optional filters
+ * @returns {Promise<object>} List of form submissions
+ */
+export async function getFormSubmissions(limit = 10, filters = {}) {
+  await initCredentials();
+  
+  let queryParams = `per_page=${limit}`;
+  
+  if (filters.startDate) {
+    queryParams += `&start_date=${filters.startDate}`;
+  }
+  if (filters.endDate) {
+    queryParams += `&end_date=${filters.endDate}`;
+  }
+  
+  return await makeRequest(
+    `/a/${accountId}/form_submissions.json?${queryParams}`
+  );
+}

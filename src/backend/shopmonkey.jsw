@@ -1,0 +1,277 @@
+/**
+ * ShopMonkey API Integration
+ * 
+ * This module handles all ShopMonkey API interactions for customer
+ * management, service orders, vehicle tracking, and appointment scheduling.
+ * 
+ * SETUP:
+ * 1. Add SHOPMONKEY_API_KEY to Wix Secrets Manager
+ * 2. Add SHOPMONKEY_API_URL to Secrets Manager (https://api.shopmonkey.io/v3)
+ * 3. Verify ShopMonkey account has API access enabled
+ * 
+ * @module backend/shopmonkey
+ */
+
+import { fetch } from 'wix-fetch';
+import { getSecret } from 'wix-secrets-backend';
+
+// Cache API credentials
+let apiKey = null;
+let apiUrl = null;
+
+/**
+ * Initialize API credentials from Secrets Manager
+ */
+async function initCredentials() {
+  if (!apiKey) {
+    apiKey = await getSecret('SHOPMONKEY_API_KEY');
+    apiUrl = await getSecret('SHOPMONKEY_API_URL') || 'https://api.shopmonkey.io/v3';
+  }
+}
+
+/**
+ * Make authenticated request to ShopMonkey API
+ * @param {string} endpoint - API endpoint path
+ * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
+ * @param {object} data - Request body data
+ * @returns {Promise<object>} API response
+ */
+async function makeRequest(endpoint, method = 'GET', data = null) {
+  await initCredentials();
+  
+  const options = {
+    method: method,
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
+  };
+  
+  if (data && (method === 'POST' || method === 'PUT')) {
+    options.body = JSON.stringify(data);
+  }
+  
+  try {
+    const response = await fetch(`${apiUrl}${endpoint}`, options);
+    const result = await response.json();
+    
+    if (!response.ok) {
+      console.error('ShopMonkey API Error:', response.status, result);
+      return {
+        success: false,
+        error: result.message || 'API request failed',
+        status: response.status
+      };
+    }
+    
+    return {
+      success: true,
+      data: result
+    };
+  } catch (error) {
+    console.error('ShopMonkey Request Error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error occurred'
+    };
+  }
+}
+
+/**
+ * Create a new customer in ShopMonkey
+ * @param {object} customerData - Customer information
+ * @returns {Promise<object>} Created customer data
+ */
+export async function createCustomer(customerData) {
+  const payload = {
+    firstName: customerData.firstName,
+    lastName: customerData.lastName,
+    email: customerData.email,
+    phone: customerData.phone,
+    mobile: customerData.mobile || customerData.phone,
+    address: customerData.address || '',
+    city: customerData.city || '',
+    state: customerData.state || '',
+    zip: customerData.zip || '',
+    notes: customerData.notes || '',
+    source: 'Website',
+    tags: ['Web Lead']
+  };
+  
+  return await makeRequest('/customers', 'POST', payload);
+}
+
+/**
+ * Get customer by email address
+ * @param {string} email - Customer email
+ * @returns {Promise<object>} Customer data if found
+ */
+export async function getCustomerByEmail(email) {
+  const result = await makeRequest(`/customers?email=${encodeURIComponent(email)}`);
+  
+  if (result.success && result.data && result.data.length > 0) {
+    return {
+      success: true,
+      data: result.data[0]
+    };
+  }
+  
+  return {
+    success: false,
+    error: 'Customer not found'
+  };
+}
+
+/**
+ * Create or update customer (upsert)
+ * @param {object} customerData - Customer information
+ * @returns {Promise<object>} Customer data
+ */
+export async function upsertCustomer(customerData) {
+  // Try to find existing customer by email
+  const existing = await getCustomerByEmail(customerData.email);
+  
+  if (existing.success) {
+    // Update existing customer
+    return await makeRequest(
+      `/customers/${existing.data.id}`,
+      'PUT',
+      customerData
+    );
+  }
+  
+  // Create new customer
+  return await createCustomer(customerData);
+}
+
+/**
+ * Create a new vehicle for a customer
+ * @param {string} customerId - ShopMonkey customer ID
+ * @param {object} vehicleData - Vehicle information
+ * @returns {Promise<object>} Created vehicle data
+ */
+export async function createVehicle(customerId, vehicleData) {
+  const payload = {
+    customerId: customerId,
+    year: vehicleData.year,
+    make: vehicleData.make,
+    model: vehicleData.model,
+    vin: vehicleData.vin || '',
+    licensePlate: vehicleData.licensePlate || '',
+    color: vehicleData.color || '',
+    notes: vehicleData.notes || ''
+  };
+  
+  return await makeRequest('/vehicles', 'POST', payload);
+}
+
+/**
+ * Create a service order in ShopMonkey
+ * @param {object} orderData - Service order information
+ * @returns {Promise<object>} Created order data
+ */
+export async function createServiceOrder(orderData) {
+  const payload = {
+    customerId: orderData.customerId,
+    vehicleId: orderData.vehicleId,
+    services: orderData.services || [],
+    scheduledStartDate: orderData.scheduledDate,
+    notes: orderData.notes || '',
+    status: 'scheduled',
+    source: 'Website',
+    priority: orderData.priority || 'normal'
+  };
+  
+  return await makeRequest('/orders', 'POST', payload);
+}
+
+/**
+ * Complete booking flow: create customer, vehicle, and order
+ * @param {object} bookingData - Complete booking information
+ * @returns {Promise<object>} Booking confirmation
+ */
+export async function createCompleteBooking(bookingData) {
+  try {
+    // Step 1: Create or get customer
+    const customerResult = await upsertCustomer({
+      firstName: bookingData.firstName,
+      lastName: bookingData.lastName,
+      email: bookingData.email,
+      phone: bookingData.phone,
+      notes: bookingData.customerNotes
+    });
+    
+    if (!customerResult.success) {
+      return customerResult;
+    }
+    
+    const customerId = customerResult.data.id;
+    
+    // Step 2: Create vehicle if provided
+    let vehicleId = null;
+    if (bookingData.vehicle) {
+      const vehicleResult = await createVehicle(customerId, {
+        year: bookingData.vehicle.year,
+        make: bookingData.vehicle.make,
+        model: bookingData.vehicle.model,
+        vin: bookingData.vehicle.vin
+      });
+      
+      if (!vehicleResult.success) {
+        return vehicleResult;
+      }
+      
+      vehicleId = vehicleResult.data.id;
+    }
+    
+    // Step 3: Create service order
+    const orderResult = await createServiceOrder({
+      customerId: customerId,
+      vehicleId: vehicleId,
+      services: bookingData.services,
+      scheduledDate: bookingData.scheduledDate,
+      notes: bookingData.orderNotes,
+      priority: bookingData.priority
+    });
+    
+    if (!orderResult.success) {
+      return orderResult;
+    }
+    
+    // Return complete booking info
+    return {
+      success: true,
+      data: {
+        customer: customerResult.data,
+        vehicle: vehicleId ? { id: vehicleId } : null,
+        order: orderResult.data,
+        confirmationNumber: orderResult.data.orderNumber || orderResult.data.id
+      }
+    };
+    
+  } catch (error) {
+    console.error('Complete Booking Error:', error);
+    return {
+      success: false,
+      error: 'Failed to create booking. Please try again.'
+    };
+  }
+}
+
+/**
+ * Get order status by order ID
+ * @param {string} orderId - ShopMonkey order ID
+ * @returns {Promise<object>} Order status and details
+ */
+export async function getOrderStatus(orderId) {
+  return await makeRequest(`/orders/${orderId}`);
+}
+
+/**
+ * Get list of services offered
+ * @returns {Promise<object>} List of services
+ */
+export async function getServices() {
+  return await makeRequest('/services');
+}

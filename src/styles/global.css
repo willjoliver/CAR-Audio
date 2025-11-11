@@ -1,0 +1,97 @@
+/**
+ * CARAudio - Global Styles
+ * 
+ * This file contains site-wide CSS styles including:
+ * - Adobe Fonts (Typekit) integration
+ * - Custom font families
+ * - Global typography overrides
+ * 
+ * Adobe Fonts Added:
+ * - Gamay Cond Light (font-weight: 200)
+ * - Gamay Cond Regular (font-weight: 400)
+ */
+
+/* Import Adobe Fonts (Typekit) */
+@import url("https://use.typekit.net/sxz6cod.css");
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+/* Rich Text Elements */
+.richtext__text {
+  font-family: "gamay-condensed", sans-serif !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+}
+
+/* Gamay Condensed Font Family Classes */
+.font-gamay-light {
+  font-family: "gamay-condensed", sans-serif;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.font-gamay-regular {
+  font-family: "gamay-condensed", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Apply Gamay font to headings (optional) */
+h1, h2, h3, h4, h5, h6 {
+  font-family: "gamay-condensed", sans-serif;
+  font-weight: 400;
+}
+
+/* Body text override (if needed) */
+body {
+  font-family: "gamay-condensed", sans-serif;
+}
+
+/* ============================================
+   CUSTOM STYLES
+   ============================================ */
+
+/* Add any additional global styles below */
+
+/* Buttons */
+button, .button {
+  font-family: "gamay-condensed", sans-serif;
+  font-weight: 400;
+  transition: all 0.3s ease;
+}
+
+/* Form inputs */
+input, textarea, select {
+  font-family: "gamay-condensed", sans-serif;
+}
+
+/* Navigation */
+nav, .nav-menu {
+  font-family: "gamay-condensed", sans-serif;
+  font-weight: 400;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-light {
+  font-weight: 200 !important;
+}
+
+.text-regular {
+  font-weight: 400 !important;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 768px) {
+  /* Mobile-specific font adjustments if needed */
+  body {
+    font-size: 16px;
+  }
+}

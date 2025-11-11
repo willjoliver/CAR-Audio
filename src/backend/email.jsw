@@ -1,0 +1,120 @@
+/**
+ * Email Notification Service
+ * 
+ * Handles sending confirmation emails, notifications, and customer communications
+ * for the CARAudio website.
+ * 
+ * @module backend/email
+ */
+
+import { emailBackend } from 'wix-email-backend';
+
+/**
+ * Send booking confirmation email to customer
+ * @param {object} bookingData - Booking details
+ * @returns {Promise<object>} Email send result
+ */
+export async function sendBookingConfirmation(bookingData) {
+  const emailContent = {
+    to: bookingData.customerEmail,
+    from: 'noreply@caraudio.com',
+    subject: `Booking Confirmation - Order #${bookingData.orderNumber}`,
+    body: generateBookingEmailHTML(bookingData)
+  };
+  
+  try {
+    await emailBackend.send(emailContent);
+    return { success: true, message: 'Confirmation email sent' };
+  } catch (error) {
+    console.error('Email send error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Send contact form notification to admin
+ * @param {object} formData - Contact form data
+ * @returns {Promise<object>} Email send result
+ */
+export async function sendContactNotification(formData) {
+  const emailContent = {
+    to: 'info@caraudio.com', // Replace with your admin email
+    from: 'noreply@caraudio.com',
+    subject: `New Contact Form Submission - ${formData.name}`,
+    body: generateContactEmailHTML(formData)
+  };
+  
+  try {
+    await emailBackend.send(emailContent);
+    return { success: true, message: 'Notification sent' };
+  } catch (error) {
+    console.error('Email send error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Generate HTML for booking confirmation email
+ * @param {object} data - Booking data
+ * @returns {string} HTML email content
+ */
+function generateBookingEmailHTML(data) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #FF6B35; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; background: #f9f9f9; }
+        .details { background: white; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .button { background: #FF6B35; color: white; padding: 12px 30px; 
+                  text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Booking Confirmed!</h1>
+        </div>
+        <div class="content">
+          <p>Hi ${data.customerName},</p>
+          <p>Thank you for booking your car audio installation with CARAudio!</p>
+          <div class="details">
+            <h3>Booking Details</h3>
+            <p><strong>Order Number:</strong> ${data.orderNumber}</p>
+            <p><strong>Service Date:</strong> ${data.scheduledDate}</p>
+            <p><strong>Service:</strong> ${data.serviceName}</p>
+            ${data.vehicleInfo ? `<p><strong>Vehicle:</strong> ${data.vehicleInfo}</p>` : ''}
+          </div>
+          <p>We'll call you 24 hours before your appointment to confirm.</p>
+          <p>Questions? Call us at (555) 123-4567.</p>
+          <p>Best regards,<br>The CARAudio Team</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+/**
+ * Generate HTML for contact notification email
+ * @param {object} data - Contact form data
+ * @returns {string} HTML email content
+ */
+function generateContactEmailHTML(data) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <body>
+      <h2>New Contact Form Submission</h2>
+      <p><strong>Name:</strong> ${data.name}</p>
+      <p><strong>Email:</strong> ${data.email}</p>
+      <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
+      <p><strong>Message:</strong> ${data.message}</p>
+      <p><strong>Submitted:</strong> ${new Date().toLocaleString()}</p>
+    </body>
+    </html>
+  `;
+}

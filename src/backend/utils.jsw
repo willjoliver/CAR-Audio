@@ -1,0 +1,128 @@
+/**
+ * Utility Functions
+ * 
+ * Common helper functions used across the CARAudio website.
+ * 
+ * @module backend/utils
+ */
+
+/**
+ * Format phone number to standard format
+ * @param {string} phone - Raw phone number
+ * @returns {string} Formatted phone number
+ */
+export function formatPhoneNumber(phone) {
+  if (!phone) return '';
+  
+  const cleaned = phone.replace(/\D/g, '');
+  
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  
+  if (cleaned.length === 11 && cleaned[0] === '1') {
+    return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+  }
+  
+  return phone;
+}
+
+/**
+ * Validate email address
+ * @param {string} email - Email to validate
+ * @returns {boolean} True if valid
+ */
+export function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Validate phone number
+ * @param {string} phone - Phone to validate
+ * @returns {boolean} True if valid
+ */
+export function isValidPhone(phone) {
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned.length === 10 || (cleaned.length === 11 && cleaned[0] === '1');
+}
+
+/**
+ * Generate a random order/confirmation number
+ * @returns {string} Random alphanumeric string
+ */
+export function generateOrderNumber() {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+  return `CAR-${timestamp}-${random}`;
+}
+
+/**
+ * Format currency
+ * @param {number} amount - Amount in dollars
+ * @returns {string} Formatted currency string
+ */
+export function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+}
+
+/**
+ * Format date to readable string
+ * @param {Date|string} date - Date to format
+ * @returns {string} Formatted date string
+ */
+export function formatDate(date) {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(dateObj);
+}
+
+/**
+ * Sanitize user input to prevent XSS
+ * @param {string} input - User input string
+ * @returns {string} Sanitized string
+ */
+export function sanitizeInput(input) {
+  if (!input) return '';
+  
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/**
+ * Validate form data
+ * @param {object} formData - Form field data
+ * @param {array} requiredFields - Array of required field names
+ * @returns {object} Validation result with errors
+ */
+export function validateFormData(formData, requiredFields) {
+  const errors = {};
+  
+  requiredFields.forEach(field => {
+    if (!formData[field] || formData[field].trim() === '') {
+      errors[field] = `${field} is required`;
+    }
+  });
+  
+  if (formData.email && !isValidEmail(formData.email)) {
+    errors.email = 'Invalid email address';
+  }
+  
+  if (formData.phone && !isValidPhone(formData.phone)) {
+    errors.phone = 'Invalid phone number';
+  }
+  
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors: errors
+  };
+}
